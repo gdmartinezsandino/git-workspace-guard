@@ -1,237 +1,118 @@
-# 🛡️ Git Workspace Guard
 
-A lightweight local setup to safely manage multiple companies / identities on the same machine.
+# 🛡️ Git Guard
 
-This system allows you to:
+A robust CLI tool to manage multiple Git identities and SSH keys on a single machine. It automatically prevents you from committing to the wrong project with the wrong identity by analyzing repository remotes.
 
- - Switch between company workspaces with one command
- - Automatically change Git identity (name + email)
- - Enforce confirmation before every git commit and git push
- - Prevent accidental commits or pushes with the wrong profile
- - Work globally across all repositories
+
+## 🚀 Why this exists?
+
+Standard Git makes it easy to accidentally commit to a **Work** repo using your **Personal** email, or vice-versa. Git Workspace Guard creates an "Identity Firewall" that validates your repository's remote namespace against your active profile.
+
 
 ## ✨ Features
- - set_workspace `company` command
- - Global Git hooks (`pre-commit`, `pre-push`
- - Mandatory workspace selection
- - Interactive confirmation before commit/push
- - Works with any Git repository
- - Compatible with Husky (via hook chaining)
-  
-### 📁 Components
- - `~/.git-workspace` → stores the active workspace
- - `~/.git-hooks/pre-commit` → commit protection
- - `~/.git-hooks/pre-push` → push protection
- - `set_workspace` → shell function to switch identity
 
-### ⚙️ Installation
+-  **Smart Detection**: Automatically identifies if a repo belongs to an organization (e.g., `personal`, `work`) based on the URL.
+-  **Identity Firewall**: Blocks commits if your active workspace doesn't match the repository's owner.
+-  **SSH Key Management**: Automatically manages active identities so you never use the wrong key.
+-  **Zero-Manual Config**: No more manual editing of `~/.zshrc` or `.gitconfig`. Use the CLI wizard.
+-  **Global Protection**: Works across all your repositories via global Git hooks.
 
-1️⃣ Create a global Git hooks directory
+## 📁 Components
 
-    mkdir -p ~/.git-hooks
-    
-    git config --global core.hooksPath ~/.git-hooks
-    
-Restart your terminal after this.
+-  `~/.gw/config.json`: Centralized storage for all your workspace profiles.
+-  `~/.gw/guard.sh`: The high-performance shell engine that validates identity during Git operations.
+-  `~/.gw/hooks/`: Global Git hooks directory.
+-  `~/.gw/state.json`: Tracks the currently active workspace.
+---  
 
-2️⃣ Create the set_workspace command
-
-Add this to your  `~/.zshrc` (or `~/.bashrc`):
-
-    # Colors for output
-    
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    NC='\033[0m'
-     
-    set_workspace() {
-	    PROFILE="$1"
-	    if [ -z  "$PROFILE" ]; then
-		    echo  "${RED}Usage: set_workspace <company>${NC}"
-		    return  1
-	    fi
-	    
-	    case  "$PROFILE"  in
-	 		    personal)
-				    NAME=YOUR_NAME
-				    EMAIL="[EMAIL]"
-				    SSH_KEY="$HOME/.ssh/id_rsa_personal"
-				    SSH_HOST="personal-github"
-				    ;;
-
-          # OTHER COMPANIES
-    
-			    *)
-				    echo  "${YELLOW}Unknown workspace: $PROFILE${NC}"
-				    return  1
-				    ;;
-    
-		 esac
-   
-	    # Git identity
-	    git  config  --global  user.name  "$NAME"
-	    git  config  --global  user.email  "$EMAIL"
-    
-	    # Save active profile
-	    echo  "$PROFILE"  >  ~/.git-workspace
-   
-	    # Export SSH command globally for this shell
-		  export  GIT_SSH_COMMAND="ssh -i $SSH_KEY -o IdentitiesOnly=yes"
-	
-	    echo  "${GREEN}✅ Workspace set to: $PROFILE${NC}"
-	    echo  " 👤 $NAME <$EMAIL>"
-	    echo  " 🔑 $SSH_KEY"
-	 }
-
-Reload your shell:  
-
-    source ~/.zshrc
-
-3️⃣ Create the pre-commit hook
-
-*~/.git-hooks/pre-commit*
+## ⚙️ Installation
 
 
-    #!/bin/bash
+1.  **Clone the repository**
 
-    # Colors for output
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    NC='\033[0m'
- 
-    ACTIVE=$(cat  ~/.git-workspace  2>/dev/null)
-    if [ -z  "$ACTIVE" ]; then
-	    echo  "${RED}❌ No active workspace. Run: set_workspace <company>${NC}"
-	    exit  1 
-    fi
-   
-    EMAIL=$(git  config  --global  user.email)
-    
-    echo  ""
-    echo  "${YELLOW}📝 Git commit detected${NC}"
-    echo  "👤 Workspace: $ACTIVE"
-    echo  "📧 Email: $EMAIL" 
-    echo  ""
-   
-    read  -p  "${YELLOW}Continue commit? (y/n): ${NC}"  confirm  <  /dev/tty
-        
-    if [[ "$confirm"  !=  "y" ]]; then
-	    echo  "${RED}❌ Commit cancelled${NC}"
-	    echo  ""
-	    echo  "To set a workspace use: set_workspace [name]"
-	    echo  ""
-	    exit  1
-    fi
+```bash
+git clone <your-repo-url> git-workspace-guard
+cd git-workspace-guard
+```
 
-save the pre-hook, and set the permissions
+2.  **Run the installer**
 
-    chmod +x ~/.git-hooks/pre-commit
+```bash
+chmod +x install.sh
+./install.sh
+```
 
-4️⃣ Create the pre-push hook
+3.  **Restart your terminal or run**
 
-*~/.git-hooks/pre-push*
+```bash
+source ~/.zshrc
+```  
 
-    #!/bin/bash
-    
-    # Colors for output
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'   
-    NC='\033[0m'
- 
-    ACTIVE=$(cat  ~/.git-workspace  2>/dev/null)
-    if [ -z  "$ACTIVE" ]; then
-	    echo  "${RED}❌ No active workspace. Run: set_workspace <company>${NC}"
-	    exit  1
-    fi
-    
-    EMAIL=$(git  config  --global  user.email)
-    echo  "${YELLOW}🚀 Pushing as [$ACTIVE] <$EMAIL>${NC}"
-    echo  "👤 Workspace: $ACTIVE"
-    echo  "📧 Email: $EMAIL"
-        
-    read  -p  "${YELLOW}Continue push? (y/n): ${NC}"  confirm  <  /dev/tty
+## Usage
 
-    if [[ "$confirm"  !=  "y" ]]; then
-	    echo  "${RED}❌ Push cancelled${NC}"
-	    echo  ""
-	    echo  "To set a workspace use: set_workspace [name]"
-	    echo  ""
-	    exit  1
-    fi
+1.  **Add your workspaces**
 
- Save the pre-hook, and set the permissions
+Run the wizard for each identity (Personal, Work, etc.):
 
-    chmod +x ~/.git-hooks/pre-push
+```bash
+gw  workspace  add
+```
 
-## 🧪 Usage
+**The wizard will ask for:**
 
-Set active workspace
+-   **Workspace Name**: (e.g., `personal`, `aaamb`)
+-   **Git Name & Email**: (e.g., `Gabriel Martinez`, `gabriel@aaamb.com`)
+-   **SSH Key Path**: Path to the specific key for this profile.   
+-   **Organization Keyword**: The name found in the Git URL (e.g., `aaambcode` for Bitbucket or your username for GitHub).
 
-    set_workspace personal
+2.  **Switch Workspaces**
+
+```bash
+gw workspace use personal
+```
 
 **Output:**
 
-    ✅ Workspace set to: personal
-    👤 [NAME] <[EMAIL]@[COMPANY].com>
-    🔑 /Users/.../id_rsa_personal
+```bash
+✅  Workspace  WORKSPACE_NAME  active
+👤  WORKSPACE_USER_NAME <WORKSPACE_USER_EMAIL>
+🔑  ~/keys/id_rsa_WORKSPACE_NAME
+```
 
-### Commit
+3.  **The Guard in Action**
 
-    git commit -m "Add login flow"
-    
-    📝 Git commit detected
-    👤 Workspace: [COMPANY]
-    📧 Email: [EMAIL]@[COMPANY].com
-    
-    Continue commit? (y/n):
+If you try to commit to a **Personal** repo while the **Work** workspace is active:
 
-  
+```bash
+git  commit  -m  "Update login logic"
+```
 
-### Push
+**Output:**
 
-    git push origin main
-    
-    🚀 Git push detected
-    👤 Workspace: aaamb
-    📧 Email: [EMAIL]
-
-    Continue push? (y/n):
-
+```bash
+🛡  Git  Workspace  Guard
+❌  Workspace  Mismatch!
+Your  current  active  workspace  is:  aaamb
+This  repo  is  linked  to  gdmartinezsandino
+👉  Run:  gw  use  personal
+```
 
 ## 🔒 What this protects you from
-❌ Pushing with the wrong SSH key
-❌ Committing with the wrong company email
-❌ Forgetting which workspace you’re in
-❌ Cross-company mistakes
 
-## 🧠 Philosophy
+-   ✅ **Email Leaks**: Prevents using a personal email for company commits.
+-   ✅ **Remote Mismatch**: Blocks operations if you are in the wrong "context."
+-   ✅ **SSH Identity Errors**: Ensures the correct key is always prioritized.
 
-This setup does not replace Git.
+## 🧩 Husky Compatibility
 
-It wraps your local environment with identity awareness and safety rails.
+If a repository uses Husky, it may override global hooks. To maintain protection, add this to the top of your `.husky/pre-commit` file:
 
-Exactly how internal dev platforms are built.
+```bash
+if [ -x "$HOME/.gw/guard.sh" ]; then
+  "$HOME/.gw/guard.sh" || exit  1
+fi
+```
+  
+## Philosophy
 
-
-### 🧩 Husky compatibility
-
-If a repository uses Husky, it overrides global hooks. To chain this guard into Husky:
-
-Edit: `.husky/pre-commit`. Add at the top:
-
-*.husky/pre-push*
-
-    if [ -x "$HOME/.git-hooks/pre-commit" ]; then
-	    "$HOME/.git-hooks/pre-commit" || exit 1    
-    fi
-
-    or for push:
-   
-    if [ -x "$HOME/.git-hooks/pre-push" ]; then
-	    "$HOME/.git-hooks/pre-push" || exit 1
-    fi
-
-This preserves Husky while enforcing your global workspace protection.
+This tool follows the **Local Dev Platform** pattern. It wraps your existing Git workflow with a layer of identity awareness, ensuring that you remain compliant with security policies without sacrificing developer experience.
