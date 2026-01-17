@@ -22,3 +22,13 @@ export type GuardContext = {
   gitRemote?: string
   gitHost?: 'github' | 'bitbucket' | 'gitlab' | 'unknown'
 }
+
+export type DoctorStatus = 'ok' | 'warn' | 'error'
+export type DoctorCheck = {
+  id: string
+  label: string
+  status: DoctorStatus
+  message?: string
+  hint?: string
+  fix?: string
+}
