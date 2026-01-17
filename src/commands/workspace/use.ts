@@ -9,29 +9,33 @@ export default async function use(name: string) {
   const workspaces = config.get('workspaces')
   const ws = workspaces[name]
 
+  // 1. Validate workspace existence
   if (!ws) {
     console.log(`echo "❌ Workspace not found: ${name}"`)
     console.log(`echo "👉 Run: gw list"`)
     return
   }
 
+  // 2. Set active workspace in state
   state.set('activeWorkspace', name)
 
   try {
     const realKeyPath = ws.sshKey.replace('~', os.homedir());
     
-    // Force remove any existing file/link at the symlink path
+    // 3. Force remove any existing file/link at the symlink path
     if (fs.existsSync(ACTIVE_KEY_SYMLINK) || fs.lstatSync(ACTIVE_KEY_SYMLINK, { throwIfNoEntry: false })?.isSymbolicLink()) {
       fs.removeSync(ACTIVE_KEY_SYMLINK);
     }
-    
-    // Create the link: active_key -> /Users/.../keys/id_rsa_aaamb
+
+    // 4. Create the link: active_key -> /Users/.../keys/SSH_KEY_PATH
     fs.symlinkSync(realKeyPath, ACTIVE_KEY_SYMLINK);
-  } catch (err: any) {
+  } 
+  catch (err: any) {
     // If this fails, the SSH connection will fail.
     console.log(`echo "${chalk.red('⚠️  Error updating SSH link: ' + err.message)}"`)
   }
 
+  // 5. Output shell commands to set git config and ssh-add
   const lines = [
     `export GW_ACTIVE="${name}"`,
     `git config --global user.name "${ws.userName}"`,
@@ -41,7 +45,7 @@ export default async function use(name: string) {
     `echo "👤 ${ws.userName}"`,
     `echo "🔑 ${ws.sshKey}"`
   ];
-  
+
   const output = lines.join('\n');
   console.log(output);
 }

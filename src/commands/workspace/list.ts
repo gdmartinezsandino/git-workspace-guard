@@ -1,5 +1,6 @@
-import { config, state } from '../../core/config.js'
 import chalk from 'chalk'
+
+import { config, state } from '../../core/config.js'
 
 export default function list() {
   const workspaces = config.get('workspaces')

@@ -4,7 +4,12 @@ import path from 'path'
 import { execa } from 'execa'
 import chalk from 'chalk'
 
-import { GW_DIR, SSH_CONFIG_PATH, GW_SSH_CONFIG, ACTIVE_KEY_SYMLINK } from '../../core/constants.js'
+import { 
+  GW_DIR, 
+  SSH_CONFIG_PATH, 
+  GW_SSH_CONFIG, 
+  ACTIVE_KEY_SYMLINK 
+} from '../../core/constants.js'
 import { ensureStorage } from '../../core/storage.js'
 import { config } from '../../core/config.js'
 
@@ -29,20 +34,20 @@ export default async function init() {
 
   console.log(chalk.green('\n✅ System installed successfully\n'))
   console.log('Next steps:')
-  console.log('  gw add')
-  console.log('  gw use <name>\n')
+  console.log('  gw workspace add')
+  console.log('  gw workspace use <name>\n')
 }
 
 async function setupSSHConfig() {
   const workspaces = config.get('workspaces');
   const names = Object.keys(workspaces);
   
-  // 1. Collect every alias (gw-personal, gw-aaamb, etc.)
+  // 1. Collect every alias (gw-W_NAME_1, gw-W_NAME_2, etc.)
   const aliases = names.map(n => `gw-${n}`).join(' ');
   const domains = 'github.com bitbucket.org gitlab.com';
 
   // 2. Map BOTH the real domains AND all aliases to the active symlink
-  // This is the key: now gw-aaamb is a valid "Host" for SSH even in personal mode
+  // This is the key: now gw-W_NAME_1 is a valid "Host" for SSH even in personal mode
   const dynamicConfig = `
 # Git Workspace Guard - Unified Hijack
 Host ${domains} ${aliases}
@@ -61,6 +66,7 @@ Host ${domains} ${aliases}
     mainConfig = await fs.readFile(SSH_CONFIG_PATH, 'utf8');
   }
 
+  // 4. Add Include line if missing
   const includeLine = `Include "${GW_SSH_CONFIG}"`;
   if (!mainConfig.includes(GW_SSH_CONFIG)) {
     await fs.writeFile(SSH_CONFIG_PATH, `${includeLine}\n\n${mainConfig}`, { mode: 0o600 });
@@ -68,7 +74,18 @@ Host ${domains} ${aliases}
 }
 
 async function setupGit() {
-  await execa('git', ['config', '--global', 'core.hooksPath', path.join(os.homedir(), '.gw/hooks')])
+  await execa(
+    'git', 
+    [
+      'config', 
+      '--global', 
+      'core.hooksPath', 
+      path.join(
+        os.homedir(), 
+        '.gw/hooks'
+      )
+    ]
+  )
 }
 
 async function installHooks() {
