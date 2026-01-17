@@ -42,14 +42,14 @@ export default async function edit(name: string) {
       ...question,
       initial: initialValue,
     };
-  });
+  })
 
   // 3. Prompt the user for input, and handle cancellation
   const response = await prompts(questionsProcessed, {
-    // onCancel: () => {
-    //   log.title(chalk.yellow('\n⚠️  Workspace edition cancelled.\n'))
-    //   process.exit(0)
-    // }
+    onCancel: () => {
+      log.title(chalk.yellow('\n⚠️  Workspace edition cancelled.\n'))
+      process.exit(0)
+    }
   })
 
   const workspaceUpdated = { 

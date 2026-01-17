@@ -42,12 +42,12 @@ async function setupSSHConfig() {
   const workspaces = config.get('workspaces');
   const names = Object.keys(workspaces);
   
-  // 1. Collect every alias (gw-WORKSPACE_1, gw-WORKSPACE_2, etc.)
+  // 1. Collect every alias (gw-W_NAME_1, gw-W_NAME_2, etc.)
   const aliases = names.map(n => `gw-${n}`).join(' ');
   const domains = 'github.com bitbucket.org gitlab.com';
 
   // 2. Map BOTH the real domains AND all aliases to the active symlink
-  // This is the key: now gw-WORKSPACE_1 is a valid "Host" for SSH even in personal mode
+  // This is the key: now gw-W_NAME_1 is a valid "Host" for SSH even in personal mode
   const dynamicConfig = `
 # Git Workspace Guard - Unified Hijack
 Host ${domains} ${aliases}
