@@ -1,6 +1,7 @@
 import type { Command } from 'commander'
 
 import add from './add.js'
+import clone from './clone.js'
 import doctor from './doctor.js'
 import use from './use.js'
 import list from './list.js'
@@ -17,14 +18,14 @@ export function registerWorkspaceCommands(program: Command) {
     .action(add)
 
   workspace
+    .command('clone <url>')
+    .description('Clone a repo using the matching workspace identity')
+    .action(clone)
+
+  workspace
     .command('doctor <name>')
     .description('Run checks for workspace')
     .action(doctor)
-
-  workspace
-    .command('use <name>')
-    .description('Switch to a workspace')
-    .action(use)
 
   workspace
     .command('edit <name>')
@@ -47,7 +48,8 @@ export function registerWorkspaceCommands(program: Command) {
     .action(show)
 
   workspace
-    .command('use <name>')
-    .description('Switch to a workspace')
-    .action(use)
+    .command('use [name]')
+    .description('Switch to a workspace (auto-detects from git remote if no name given)')
+    .option('--auto', 'Non-interactive: only output if workspace actually changes (used by chpwd hook)')
+    .action((name, options) => use(name, options.auto))
 }

@@ -6,7 +6,7 @@ import { execa } from 'execa'
 import { ACTIVE_KEY_SYMLINK } from '../../core/constants.js'
 import { config, state } from '../../core/config.js'
 
-export default async function use(name: string | undefined) {
+export default async function use(name: string | undefined, auto = false) {
   const workspaces = config.get('workspaces')
 
   if (!name) {
@@ -14,20 +14,26 @@ export default async function use(name: string | undefined) {
       const { stdout: remote } = await execa('git', ['remote', 'get-url', 'origin']);
       // Extract namespace (logic same as guard.sh)
       const namespace = remote.replace(/.*[:\/](.*)\/.*$/, '$1').replace(/.*[:\/]/, '').trim();
-      
-      name = Object.keys(workspaces).find(k => 
+      name = Object.keys(workspaces).find(k =>
         workspaces[k].orgs?.some((org: string) => namespace.toLowerCase().includes(org.toLowerCase()))
       );
-    } 
+    }
     catch {
+      // In auto mode (chpwd hook), silently do nothing when not in a git repo
+      if (auto) return;
       return console.log(`echo "❌ No name provided and no git remote found."`);
     }
   }
+
+  // In auto mode, skip if workspace is already active — avoids unnecessary noise on every cd
+  if (auto && name && name === process.env.GW_ACTIVE) return;
 
   const ws = workspaces[name || '']
 
   // 1. Validate workspace existence
   if (!ws) {
+    // In auto mode, no match just means this repo isn't mapped — stay silent
+    if (auto) return;
     console.log(`echo "❌ Workspace not found: ${name}"`)
     console.log(`echo "👉 Run: gw list"`)
     return
