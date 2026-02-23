@@ -4,7 +4,13 @@ export type Workspace = {
   userEmail: string
   provider: string
   sshKey: string
+  sshAlias?: string
   orgs?: string[]
+  // API token per provider (all use Bearer auth):
+  //   GitHub:    Personal Access Token (repo scope)    → e.g. ghp_xxxx
+  //   GitLab:    Personal Access Token (api scope)     → e.g. glpat-xxxx
+  //   Bitbucket: API token (bitbucket.org → Personal settings → API tokens)
+  token?: string
 }
 
 export type WorkspaceConfig = {
@@ -21,4 +27,14 @@ export type GuardContext = {
   cwd: string
   gitRemote?: string
   gitHost?: 'github' | 'bitbucket' | 'gitlab' | 'unknown'
+}
+
+export type DoctorStatus = 'ok' | 'warn' | 'error'
+export type DoctorCheck = {
+  id: string
+  label: string
+  status: DoctorStatus
+  message?: string
+  hint?: string
+  fix?: string
 }

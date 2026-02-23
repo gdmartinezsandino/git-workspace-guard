@@ -4,12 +4,26 @@ import path from 'path'
 import { execa } from 'execa'
 import chalk from 'chalk'
 
-import { GW_DIR, SSH_CONFIG_PATH, GW_SSH_CONFIG, ACTIVE_KEY_SYMLINK } from '../../core/constants.js'
+import { 
+  GW_DIR, 
+  SSH_CONFIG_PATH, 
+  GW_SSH_CONFIG, 
+  ACTIVE_KEY_SYMLINK 
+} from '../../core/constants.js'
 import { ensureStorage } from '../../core/storage.js'
 import { config } from '../../core/config.js'
 
+const MIN_NODE_MAJOR = 18
+
 export default async function init() {
   console.log(chalk.cyan('\n🔐 Git Workspace Guard — init\n'))
+
+  const nodeMajor = parseInt(process.version.slice(1))
+  if (nodeMajor < MIN_NODE_MAJOR) {
+    console.log(chalk.red(`❌ Node.js v${MIN_NODE_MAJOR}+ is required (current: ${process.version})`))
+    console.log(chalk.dim(`   Run: nvm install ${MIN_NODE_MAJOR} && nvm alias default ${MIN_NODE_MAJOR}`))
+    process.exit(1)
+  }
 
   await ensureStorage()
   await fs.ensureDir(GW_DIR)
@@ -24,25 +38,26 @@ export default async function init() {
   await installShellIntegration()
   await installHooks()
   await installGuard()
+  await installDefaultPrTemplate()
   await setupGit()
   await setupSSHConfig()
 
   console.log(chalk.green('\n✅ System installed successfully\n'))
   console.log('Next steps:')
-  console.log('  gw add')
-  console.log('  gw use <name>\n')
+  console.log('  gw workspace add')
+  console.log('  gw workspace use <name>\n')
 }
 
 async function setupSSHConfig() {
   const workspaces = config.get('workspaces');
   const names = Object.keys(workspaces);
   
-  // 1. Collect every alias (gw-personal, gw-aaamb, etc.)
+  // 1. Collect every alias (gw-W_NAME_1, gw-W_NAME_2, etc.)
   const aliases = names.map(n => `gw-${n}`).join(' ');
   const domains = 'github.com bitbucket.org gitlab.com';
 
   // 2. Map BOTH the real domains AND all aliases to the active symlink
-  // This is the key: now gw-aaamb is a valid "Host" for SSH even in personal mode
+  // This is the key: now gw-W_NAME_1 is a valid "Host" for SSH even in personal mode
   const dynamicConfig = `
 # Git Workspace Guard - Unified Hijack
 Host ${domains} ${aliases}
@@ -61,6 +76,7 @@ Host ${domains} ${aliases}
     mainConfig = await fs.readFile(SSH_CONFIG_PATH, 'utf8');
   }
 
+  // 4. Add Include line if missing
   const includeLine = `Include "${GW_SSH_CONFIG}"`;
   if (!mainConfig.includes(GW_SSH_CONFIG)) {
     await fs.writeFile(SSH_CONFIG_PATH, `${includeLine}\n\n${mainConfig}`, { mode: 0o600 });
@@ -68,7 +84,18 @@ Host ${domains} ${aliases}
 }
 
 async function setupGit() {
-  await execa('git', ['config', '--global', 'core.hooksPath', path.join(os.homedir(), '.gw/hooks')])
+  await execa(
+    'git', 
+    [
+      'config', 
+      '--global', 
+      'core.hooksPath', 
+      path.join(
+        os.homedir(), 
+        '.gw/hooks'
+      )
+    ]
+  )
 }
 
 async function installHooks() {
@@ -76,15 +103,37 @@ async function installHooks() {
 
   await fs.ensureDir(hooksPath)
 
+  const hookScript = (hookName: string) => `#!/bin/bash
+# GW Guard: validate workspace identity
+"$HOME/.gw/guard.sh"
+
+# Delegate to project-level hooks (husky, lefthook, etc.)
+GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+
+if [ -n "$GIT_ROOT" ]; then
+  # 1. Husky v9+ (.husky/<hook>)
+  if [ -x "$GIT_ROOT/.husky/${hookName}" ]; then
+    "$GIT_ROOT/.husky/${hookName}"
+    exit $?
+  fi
+
+  # 2. Legacy .git/hooks/<hook> (fallback)
+  if [ -x "$GIT_ROOT/.git/hooks/${hookName}" ]; then
+    "$GIT_ROOT/.git/hooks/${hookName}"
+    exit $?
+  fi
+fi
+`
+
   await fs.writeFile(
     path.join(hooksPath, 'pre-commit'),
-    `#!/bin/bash\n"$HOME/.gw/guard.sh"\n`,
+    hookScript('pre-commit'),
     { mode: 0o755 }
   )
 
   await fs.writeFile(
     path.join(hooksPath, 'pre-push'),
-    `#!/bin/bash\n"$HOME/.gw/guard.sh"\n`,
+    hookScript('pre-push'),
     { mode: 0o755 }
   )
 }
@@ -134,15 +183,46 @@ fi
   await fs.writeFile(guardPath, scriptContent, { mode: 0o755 });
 }
 
+async function installDefaultPrTemplate() {
+  const templatePath = path.join(GW_DIR, 'pr-template.md');
+  // Only create if it doesn't already exist — don't overwrite user customisations
+  if (await fs.pathExists(templatePath)) return;
+
+  const defaultTemplate = `## Description
+{{branch}} → {{base}}
+
+## Changes
+-
+
+## Testing
+-
+`;
+  await fs.writeFile(templatePath, defaultTemplate);
+  console.log(chalk.dim('  - Created default PR template at ~/.gw/pr-template.md'));
+}
+
 async function installShellIntegration() {
   const zshrcPath = path.join(os.homedir(), '.zshrc');
   if (!(await fs.pathExists(zshrcPath))) return;
 
   const shellFunction = `
 # --- Git Workspace Guard Start ---
+autoload -U add-zsh-hook
+
 gw() {
+  # If nvm is available and Node is below the minimum required version, fix it silently
+  if typeset -f nvm > /dev/null 2>&1; then
+    local _gw_node_major
+    _gw_node_major=$(node --version 2>/dev/null | sed 's/v\\([0-9]*\\).*/\\1/')
+    if [[ -z "$_gw_node_major" || "$_gw_node_major" -lt ${MIN_NODE_MAJOR} ]]; then
+      nvm use ${MIN_NODE_MAJOR} --silent 2>/dev/null
+    fi
+  fi
   if [[ "$1" == "workspace" && "$2" == "use" ]]; then
     local res=$(command gw workspace use "\${@:3}")
+    eval "$res"
+  elif [[ "$1" == "workspace" && "$2" == "clone" ]]; then
+    local res=$(command gw workspace clone "\${@:3}")
     eval "$res"
   elif [[ "$1" == "use" ]]; then
     local res=$(command gw workspace use "\${@:2}")
@@ -151,12 +231,27 @@ gw() {
     command gw "$@"
   fi
 }
+
+# Auto-switch workspace when entering a directory (cd hook)
+_gw_chpwd() {
+  # Only proceed if inside a git repo
+  git rev-parse --git-dir > /dev/null 2>&1 || return
+  local res
+  res=$(command gw workspace use --auto 2>/dev/null)
+  [[ -n "$res" ]] && eval "$res"
+}
+add-zsh-hook chpwd _gw_chpwd
 # --- Git Workspace Guard End ---
 `;
 
-  const content = await fs.readFile(zshrcPath, 'utf8');
-  if (!content.includes('Git Workspace Guard Start')) {
-    await fs.appendFile(zshrcPath, shellFunction);
-    console.log(chalk.dim('  - Added shell integration to .zshrc'));
-  }
+  // Always replace the existing block so re-running init stays idempotent
+  let content = await fs.readFile(zshrcPath, 'utf8');
+  const blockPattern = /\n?# --- Git Workspace Guard Start ---[\s\S]*?# --- Git Workspace Guard End ---\n?/;
+  const existed = blockPattern.test(content);
+  content = content.replace(blockPattern, '');
+  await fs.writeFile(zshrcPath, content + shellFunction);
+  console.log(chalk.dim(existed
+    ? '  - Updated shell integration in .zshrc'
+    : '  - Added shell integration to .zshrc'
+  ));
 }

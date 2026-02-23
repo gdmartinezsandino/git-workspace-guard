@@ -1,6 +1,6 @@
-// src/commands/system/whoami.ts
 import { execa } from 'execa'
 import chalk from 'chalk'
+
 import { loadContext } from '../../core/context.js'
 
 export default async function whoami() {
@@ -24,11 +24,11 @@ export default async function whoami() {
   try {
     const { stderr, stdout } = await execa('ssh', ['-T', `git@${testHost}`, '-o', 'ConnectTimeout=5', '-o', 'StrictHostKeyChecking=no'], { reject: false });
     const output = stderr + stdout;
-    
+
     const isAuthenticated = 
       output.includes('Hi') || 
-      output.includes('successfully authenticated') || 
-      output.includes('authenticated via ssh key'); // <--- BITBUCKET FIX
+      output.includes('successfully authenticated') || // for GitHub
+      output.includes('authenticated via ssh key'); // for Bitbucket
 
     if (isAuthenticated) {
       let user = output.match(/(?:Hi |logged in as )(.*?)[!.]/)?.[1] || '';
@@ -36,7 +36,8 @@ export default async function whoami() {
         user = ctx.workspace?.name || 'Authenticated User';
       }
       console.log(`${chalk.green('✅ Authenticated as:')} ${chalk.bold(user)} (${provider})`);
-    } else {
+    } 
+    else {
       console.log(chalk.red(`❌ Not authenticated on ${testHost}`));
     }
   }
