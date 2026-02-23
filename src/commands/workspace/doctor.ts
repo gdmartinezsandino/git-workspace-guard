@@ -7,7 +7,7 @@ import { config } from '../../core/config.js'
 import { log } from '../../core/logger.js'
 import { DoctorCheck } from '../../core/types.js'
 
-export default async function workspaceDoctor(name?: string) {
+export default async function doctor(name?: string) {
   let targetName = name;
   const workspaces = config.get('workspaces');
 

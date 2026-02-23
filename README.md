@@ -1,5 +1,5 @@
 
-# 🛡️ Git Guard
+# 🛡️ Git Guard Workspace
 
 A robust CLI tool to manage multiple Git identities and SSH keys on a single machine. It automatically prevents you from committing to the wrong project with the wrong identity by analyzing repository remotes.
 
@@ -116,6 +116,139 @@ if [ -x "$HOME/.gw/guard.sh" ]; then
   "$HOME/.gw/guard.sh" || exit  1
 fi
 ```
+---
+## 🔗 Clone with the right identity
+
+Instead of `git clone`, use `gw workspace clone` to automatically match the repo to the correct workspace:
+
+```bash
+gw workspace clone git@github.com:mycompany/myrepo.git
+# or HTTPS
+gw workspace clone https://github.com/mycompany/myrepo.git
+```
+
+The tool will:
+- Detect the right workspace from the repository namespace (matched against `orgs`)
+- Rewrite the clone URL to use your workspace's SSH alias
+- Set local `git config user.name` and `git config user.email` in the cloned repo
+- Switch your active workspace automatically
+
+If no workspace matches the namespace, you'll be prompted to choose one.
+
+---
+## 🚀 Creating Pull Requests
+
+`gw pr create` opens a PR/MR against GitHub, Bitbucket, or GitLab using your active workspace's credentials.
+
+### 1. Add an API token to your workspace
+
+```bash
+gw workspace edit <name>
+```
+
+Fill in the **API token** field at the end of the wizard. The format depends on the provider:
+
+---
+
+#### GitHub
+
+Create a **Fine-grained Personal Access Token** at:
+**github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens**
+
+Required permissions:
+- **Pull requests**: Read and Write
+- **Metadata**: Read (selected automatically)
+
+```
+ghp_xxxxxxxxxxxx
+# or fine-grained:
+github_pat_xxxxxxxxxxxx
+```
+
+Enter just the token — no username prefix needed.
+
+---
+
+#### GitLab
+
+Create a **Personal Access Token** at:
+**gitlab.com → Preferences → Access tokens**
+
+Required scope: `api`
+
+```
+glpat-xxxxxxxxxxxx
+```
+
+Enter just the token — no username prefix needed.
+
+---
+
+#### Bitbucket
+
+> ⚠️ App Passwords were deprecated in September 2025. Use **API tokens** instead.
+
+Create an **API Token** at:
+**bitbucket.org → Personal settings → API tokens**
+
+Required scopes:
+- `read:repository:bitbucket`
+- `read:pullrequest:bitbucket`
+- `write:pullrequest:bitbucket`
+
+Bitbucket's REST API requires **Basic auth**, so the token must be stored as `email:token`:
+
+```
+your@email.com:ATATT3xxxxxxxxxxxxxxxxxxx
+```
+
+Use the email address associated with your Bitbucket account and the full API token as the password.
+
+---
+
+### 2. (Optional) Create a PR template
+
+Templates can be defined at two levels:
+
+| Location | Scope |
+|----------|-------|
+| `.git-templates/pr.md` in your project root | Per-project (takes priority) |
+| `~/.gw/pr-template.md` | Global fallback for all repos |
+
+Example template:
+
+```markdown
+## Description
+{{branch}} → {{base}}
+
+## Changes
+-
+
+## Testing
+-
+```
+
+**Available variables** (replaced automatically):
+
+| Variable | Value |
+|----------|-------|
+| `{{branch}}` | Current branch name |
+| `{{base}}` | Target/base branch |
+| `{{repo}}` | Repository name |
+| `{{workspace}}` | Active workspace name |
+
+> The `.git-templates/` folder is designed to hold multiple template types in the future (e.g., commit messages, issue descriptions). Only `pr.md` is used today.
+
+---
+
+### 3. Create the PR
+
+```bash
+gw pr create
+```
+
+You'll be prompted for title, base branch, and whether to open as draft (GitHub/GitLab only). The PR URL is shown at the end and can be opened in your browser directly.
+
 ---
 ## Philosophy
 

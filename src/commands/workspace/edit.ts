@@ -44,18 +44,36 @@ export default async function edit(name: string) {
     };
   })
 
-  // 3. Prompt the user for input, and handle cancellation
-  const response = await prompts(questionsProcessed, {
+  // 3. Append token prompt with provider-specific hint
+  const tokenHints: Record<string, string> = {
+    github:    'GitHub PAT with repo scope              (e.g. ghp_xxxxxxxxxxxx)',
+    gitlab:    'GitLab PAT with api scope               (e.g. glpat-xxxxxxxxxxxx)',
+    bitbucket: 'Bitbucket API token — bitbucket.org → Personal settings → API tokens',
+  }
+  const tokenHint = tokenHints[workspaceSelected.provider] ?? 'API token'
+  const tokenQuestions: prompts.PromptObject[] = [
+    {
+      type: 'text',
+      name: 'token',
+      message: `API token — ${tokenHint}\n  Leave blank to keep existing:`,
+      initial: workspaceSelected.token ?? '',
+    },
+  ]
+
+  // 4. Prompt the user for input, and handle cancellation
+  const response = await prompts([...questionsProcessed, ...tokenQuestions], {
     onCancel: () => {
       log.title(chalk.yellow('\n⚠️  Workspace edition cancelled.\n'))
       process.exit(0)
     }
   })
 
-  const workspaceUpdated = { 
-    ...workspaceSelected, 
-    ...response, 
-    orgs: response.orgs.split(',').map((name: string) => name.trim()) 
+  const workspaceUpdated = {
+    ...workspaceSelected,
+    ...response,
+    orgs: response.orgs.split(',').map((name: string) => name.trim()),
+    // Keep existing token if user left the field blank
+    token: response.token || workspaceSelected.token,
   };
 
   // 4. Save updated workspace

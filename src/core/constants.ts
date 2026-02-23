@@ -23,7 +23,7 @@ export const questions: prompts.PromptObject[] = [
       { title: 'GitLab', value: 'gitlab' },
       { title: 'Bitbucket', value: 'bitbucket' }
     ],
-    initial: 'GitHub', 
+    initial: 0,
     validate: (v: string) => v ? true : 'Git Provider is required',
   },
   {
