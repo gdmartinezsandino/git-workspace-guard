@@ -1,11 +1,9 @@
 class GitWorkspaceGuard < Formula
   desc "Identity Firewall for devs managing multiple Git identities"
   homepage "https://github.com/gdmartinezsandino/git-workspace-guard"
-  url "https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz"
-  
-  # After tagging v1.0.0, run this to get the value:
+  url "https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.2.tar.gz"
   # curl -sL https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz | shasum -a 256
-  sha256 "79346b110126a8de9a434fbbd2008df6e9cf4b3cad59afe2d1fb0c455ab18b5f"
+  sha256 "547cfa114b65444ded795add29aa0c174ea43043792f914ce24ea6969e8eff69"
   license "ISC"
 
   depends_on "node@22"
@@ -22,6 +20,6 @@ class GitWorkspaceGuard < Formula
   end
 
   test do
-    assert_match "1.0.0", shell_output("#{bin}/gw --version")
+    assert_match "1.0.2", shell_output("#{bin}/gw --version")
   end
 end
