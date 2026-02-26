@@ -5,7 +5,7 @@ class GitWorkspaceGuard < Formula
   
   # After tagging v1.0.0, run this to get the value:
   # curl -sL https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz | shasum -a 256
-  sha256 "e44e5710a7eb3473a577b126066a3e86991c1f63478106cf6b0dc5f2491bd054"
+  sha256 "79346b110126a8de9a434fbbd2008df6e9cf4b3cad59afe2d1fb0c455ab18b5f"
   license "ISC"
 
   depends_on "node@22"
