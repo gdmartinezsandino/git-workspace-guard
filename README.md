@@ -32,7 +32,7 @@ Standard Git makes it easy to accidentally commit to a **Work** repo using your 
 1.  **Clone the repository**
 
 ```bash
-git clone https://github.com/gdmartinezsandino/git-guard git-guard
+git clone https://github.com/gdmartinezsandino/git-workspace-guard.git
 cd git-workspace-guard
 ```
 
