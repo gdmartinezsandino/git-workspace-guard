@@ -38,7 +38,7 @@ npm link --force
 # - Configures global git hooksPath
 # - Adds shell integration to .zshrc
 echo -e "${BLUE}⚙️  Initializing system...${NC}"
-gw init
+node ./dist/bin/gw.js init
 
 echo ""
 echo -e "${GREEN}✅ Installation complete!${NC}"
