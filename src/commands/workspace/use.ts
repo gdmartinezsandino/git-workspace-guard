@@ -64,6 +64,7 @@ export default async function use(name: string | undefined, auto = false) {
     `git config --global user.name "${ws.userName}"`,
     `git config --global user.email "${ws.userEmail}"`,
     `ssh-add -D > /dev/null 2>&1`,
+    `ssh-add "${ws.sshKey.replace('~', '$HOME')}" > /dev/null 2>&1`,
     `echo "✅ Workspace '${name}' active"`,
     `echo "👤 ${ws.userName}"`,
     `echo "🔑 ${ws.sshKey}"`

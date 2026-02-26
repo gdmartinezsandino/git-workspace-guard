@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 import add from './add.js'
 import clone from './clone.js'
 import doctor from './doctor.js'
+import inject from './inject.js'
 import use from './use.js'
 import list from './list.js'
 import show from './show.js'
@@ -31,6 +32,11 @@ export function registerWorkspaceCommands(program: Command) {
     .command('edit <name>')
     .description('Edit an existing workspace')
     .action(edit)
+
+  workspace
+    .command('inject')
+    .description('Inject gw guard into Husky hooks for the current repo')
+    .action(inject)
 
   workspace
     .command('list')

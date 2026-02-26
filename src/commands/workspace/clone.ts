@@ -110,6 +110,7 @@ export default async function clone(url: string) {
     `git config --global user.name "${ws.userName}"`,
     `git config --global user.email "${ws.userEmail}"`,
     `ssh-add -D > /dev/null 2>&1`,
+    `ssh-add "${ws.sshKey.replace('~', '$HOME')}" > /dev/null 2>&1`,
     `echo "✅ Cloned '${repo}' with workspace '${workspaceName}'"`,
     `echo "👤 ${ws.userName} <${ws.userEmail}>"`,
   ]

@@ -1,11 +1,9 @@
 class GitWorkspaceGuard < Formula
   desc "Identity Firewall for devs managing multiple Git identities"
   homepage "https://github.com/gdmartinezsandino/git-workspace-guard"
-  url "https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz"
-  
-  # After tagging v1.0.0, run this to get the value:
+  url "https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.2.tar.gz"
   # curl -sL https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz | shasum -a 256
-  sha256 "e44e5710a7eb3473a577b126066a3e86991c1f63478106cf6b0dc5f2491bd054"
+  sha256 "547cfa114b65444ded795add29aa0c174ea43043792f914ce24ea6969e8eff69"
   license "ISC"
 
   depends_on "node@22"
@@ -15,13 +13,14 @@ class GitWorkspaceGuard < Formula
     system "npm", "run", "build"
     system "npm", "prune", "--omit=dev"
     libexec.install Dir["*"]
+    node_bin = "#{Formula["node@22"].opt_bin}/node"
     (bin/"gw").write <<~SH
       #!/usr/bin/env bash
-      exec node "#{libexec}/dist/bin/gw.js" "$@"
+      exec "#{node_bin}" "#{libexec}/dist/bin/gw.js" "$@"
     SH
   end
 
   test do
-    assert_match "1.0.0", shell_output("#{bin}/gw --version")
+    assert_match "1.0.2", shell_output("#{bin}/gw --version")
   end
 end
