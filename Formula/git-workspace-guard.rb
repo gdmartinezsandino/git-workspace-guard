@@ -3,8 +3,9 @@ class GitWorkspaceGuard < Formula
   homepage "https://github.com/gdmartinezsandino/git-workspace-guard"
   url "https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz"
   
-  # To get this value after tagging: curl -sL <url> | shasum -a 256
-  sha256 "FILL_IN_AFTER_RELEASE"
+  # After tagging v1.0.0, run this to get the value:
+  # curl -sL https://github.com/gdmartinezsandino/git-workspace-guard/archive/refs/tags/v1.0.0.tar.gz | shasum -a 256
+  sha256 "e44e5710a7eb3473a577b126066a3e86991c1f63478106cf6b0dc5f2491bd054"
   license "ISC"
 
   depends_on "node@22"
