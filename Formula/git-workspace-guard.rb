@@ -13,9 +13,10 @@ class GitWorkspaceGuard < Formula
     system "npm", "run", "build"
     system "npm", "prune", "--omit=dev"
     libexec.install Dir["*"]
+    node_bin = "#{Formula["node@22"].opt_bin}/node"
     (bin/"gw").write <<~SH
       #!/usr/bin/env bash
-      exec node "#{libexec}/dist/bin/gw.js" "$@"
+      exec "#{node_bin}" "#{libexec}/dist/bin/gw.js" "$@"
     SH
   end
 
