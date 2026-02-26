@@ -28,6 +28,14 @@ Standard Git makes it easy to accidentally commit to a **Work** repo using your 
 ---
 ## ⚙️ Installation
 
+### Homebrew (recommended)
+
+```bash
+brew tap gdmartinezsandino/git-workspace-guard https://github.com/gdmartinezsandino/git-workspace-guard
+brew install git-workspace-guard
+```
+
+### From source
 
 1.  **Clone the repository**
 
@@ -47,7 +55,7 @@ chmod +x install.sh
 
 ```bash
 source ~/.zshrc
-```  
+```
 
 ---
 ## Usage

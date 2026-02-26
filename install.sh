@@ -24,6 +24,7 @@ npm install
 # 3. Build the project (if using TypeScript/Build step)
 if [ -f "package.json" ] && grep -q "build" "package.json"; then
     echo -e "${BLUE}🛠 Building project...${NC}"
+    rm -f tsconfig.tsbuildinfo
     npm run build
 fi
 
