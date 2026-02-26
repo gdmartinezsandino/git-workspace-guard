@@ -1,5 +1,5 @@
 {
-  "name": "git-workspace-guard",
+  "name": "git-guard-workspace",
   "version": "1.0.0",
   "description": "A lightweight local setup to safely manage multiple companies / identities on the same machine.",
   "main": "./src/index.js",
@@ -19,6 +19,9 @@
   },
   "keywords": [],
   "author": "",
+  "engines": {
+    "node": ">=18"
+  },
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/gdmartinezsandino/git-workspace-guard/issues"
