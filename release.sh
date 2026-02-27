@@ -77,7 +77,7 @@ echo -e "${BLUE}📋 Updating Formula/git-workspace-guard.rb...${NC}"
 FORMULA="Formula/git-workspace-guard.rb"
 
 sed -i '' "s|archive/refs/tags/v[0-9.]*\.tar\.gz|archive/refs/tags/${TAG}.tar.gz|" "$FORMULA"
-sed -i '' "s|sha256 \"[a-f0-9]*\"|sha256 \"$SHA256\"|" "$FORMULA"
+sed -i '' "s|sha256 \"[^\"]*\"|sha256 \"$SHA256\"|" "$FORMULA"
 sed -i '' "s|assert_match \"[0-9.]*\"|assert_match \"$NEW_VERSION\"|" "$FORMULA"
 
 # ─── Step 6: Commit + push formula ────────────────────────────────────────────
