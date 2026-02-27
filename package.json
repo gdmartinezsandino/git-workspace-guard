@@ -1,6 +1,6 @@
 {
   "name": "git-guard-workspace",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A lightweight local setup to safely manage multiple companies / identities on the same machine.",
   "main": "./src/index.js",
   "type": "module",
