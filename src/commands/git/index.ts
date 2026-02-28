@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 import commit from './commit.js'
 import push from './push.js'
 import changelog from './changelog.js'
+import release from './release.js'
 
 export function registerGitCommands(program: Command) {
   program
@@ -19,4 +20,9 @@ export function registerGitCommands(program: Command) {
     .command('changelog')
     .description('Generate or update CHANGELOG.md from conventional commit history')
     .action(changelog)
+
+  program
+    .command('release')
+    .description('Bump semver version, tag, update changelog, and create a platform release')
+    .action(release)
 }
