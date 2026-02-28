@@ -4,6 +4,7 @@ import { registerSystemCommands } from './commands/system/index.js'
 import { registerWorkspaceCommands } from './commands/workspace/index.js'
 import { registerPrCommands } from './commands/pr/index.js'
 import { registerGitCommands } from './commands/git/index.js'
+import { registerBranchCommands } from './commands/branch/index.js'
 
 const require = createRequire(import.meta.url)
 const { version } = require('../package.json') as { version: string }
@@ -19,5 +20,6 @@ registerSystemCommands(program)
 registerWorkspaceCommands(program)
 registerPrCommands(program)
 registerGitCommands(program)
+registerBranchCommands(program)
 
 program.parse()
