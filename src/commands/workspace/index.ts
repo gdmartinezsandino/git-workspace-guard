@@ -2,6 +2,7 @@ import type { Command } from 'commander'
 
 import add from './add.js'
 import clone from './clone.js'
+import cloneAll from './clone-all.js'
 import doctor from './doctor.js'
 import inject from './inject.js'
 import use from './use.js'
@@ -9,6 +10,7 @@ import list from './list.js'
 import show from './show.js'
 import edit from './edit.js'
 import remove from './remove.js'
+import sync from './sync.js'
 
 export function registerWorkspaceCommands(program: Command) {
   const workspace = program.command('workspace').description('Workspace commands')
@@ -58,4 +60,14 @@ export function registerWorkspaceCommands(program: Command) {
     .description('Switch to a workspace (auto-detects from git remote if no name given)')
     .option('--auto', 'Non-interactive: only output if workspace actually changes (used by chpwd hook)')
     .action((name, options) => use(name, options.auto))
+
+  workspace
+    .command('clone-all')
+    .description('Clone all repos from an org using the correct SSH alias')
+    .action(cloneAll)
+
+  workspace
+    .command('sync')
+    .description('Pull latest on the default branch for all workspace repos in a directory')
+    .action(sync)
 }
