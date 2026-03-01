@@ -65,9 +65,21 @@ export default async function use(name: string | undefined, auto = false) {
     `git config --global user.email "${ws.userEmail}"`,
     `ssh-add -D > /dev/null 2>&1`,
     `ssh-add "${ws.sshKey.replace('~', '$HOME')}" > /dev/null 2>&1`,
+    // Apply GPG signing if a key is configured for this workspace
+    ...(ws.gpgKey ? [
+      `git config --global user.signingkey "${ws.gpgKey}"`,
+      `git config --global commit.gpgsign true`,
+      `git config --global tag.gpgSign true`,
+    ] : [
+      // Clear signing when workspace has no GPG key configured
+      `git config --global --unset user.signingkey 2>/dev/null || true`,
+      `git config --global commit.gpgsign false`,
+      `git config --global tag.gpgSign false`,
+    ]),
     `echo "✅ Workspace '${name}' active"`,
     `echo "👤 ${ws.userName}"`,
-    `echo "🔑 ${ws.sshKey}"`
+    `echo "🔑 ${ws.sshKey}"`,
+    ...(ws.gpgKey ? [`echo "🔐 GPG: ${ws.gpgKey}"`] : []),
   ]
 
   const output = lines.join('\n')

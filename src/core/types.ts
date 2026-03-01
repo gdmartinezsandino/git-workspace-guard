@@ -11,6 +11,8 @@ export type Workspace = {
   //   GitLab:    Personal Access Token (api scope)     → e.g. glpat-xxxx
   //   Bitbucket: API token (bitbucket.org → Personal settings → API tokens)
   token?: string
+  // GPG key ID used for commit signing (set via `gw commit sign`)
+  gpgKey?: string
 }
 
 export type WorkspaceConfig = {

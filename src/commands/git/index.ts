@@ -4,12 +4,19 @@ import commit from './commit.js'
 import push from './push.js'
 import changelog from './changelog.js'
 import release from './release.js'
+import sign from './sign.js'
 
 export function registerGitCommands(program: Command) {
-  program
+  // `gw commit` runs the wizard; `gw commit sign` runs the GPG setup
+  const commitCmd = program
     .command('commit')
     .description('Interactive conventional commit wizard (feat/fix/chore/…)')
     .action(commit)
+
+  commitCmd
+    .command('sign')
+    .description('Configure GPG signing for commits in the active workspace')
+    .action(sign)
 
   program
     .command('push')
