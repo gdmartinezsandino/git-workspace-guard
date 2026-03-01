@@ -1,3 +1,144 @@
+// ─── PR List ─────────────────────────────────────────────────────────────────
+
+export type PRListItem = {
+  number: number
+  title: string
+  author: string
+  branch: string
+  url: string
+  createdAt: string
+  draft?: boolean
+}
+
+export async function listGitHubPRs(token: string, owner: string, repo: string): Promise<PRListItem[]> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=30`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    throw new Error(err.message ?? `GitHub API error ${res.status}`)
+  }
+  const data = await res.json() as any[]
+  return data.map(pr => ({
+    number: pr.number,
+    title: pr.title,
+    author: pr.user?.login ?? 'unknown',
+    branch: pr.head?.ref ?? '',
+    url: pr.html_url,
+    createdAt: pr.created_at?.slice(0, 10) ?? '',
+    draft: pr.draft ?? false,
+  }))
+}
+
+export async function listGitLabMRs(token: string, namespace: string, repo: string): Promise<PRListItem[]> {
+  const projectPath = encodeURIComponent(`${namespace}/${repo}`)
+  const res = await fetch(`https://gitlab.com/api/v4/projects/${projectPath}/merge_requests?state=opened&per_page=30`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    throw new Error(Array.isArray(err.message) ? err.message.join(', ') : (err.message ?? `GitLab API error ${res.status}`))
+  }
+  const data = await res.json() as any[]
+  return data.map(mr => ({
+    number: mr.iid,
+    title: mr.title,
+    author: mr.author?.username ?? 'unknown',
+    branch: mr.source_branch ?? '',
+    url: mr.web_url,
+    createdAt: mr.created_at?.slice(0, 10) ?? '',
+    draft: mr.draft ?? false,
+  }))
+}
+
+export async function listBitbucketPRs(token: string, workspace: string, repo: string): Promise<PRListItem[]> {
+  const authHeader = token.includes(':')
+    ? `Basic ${Buffer.from(token).toString('base64')}`
+    : `Bearer ${token}`
+  const res = await fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${repo}/pullrequests?state=OPEN&pagelen=30`, {
+    headers: { 'Authorization': authHeader },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    throw new Error(err.error?.message ?? `Bitbucket API error ${res.status}`)
+  }
+  const data = await res.json() as any
+  return (data.values ?? []).map((pr: any) => ({
+    number: pr.id,
+    title: pr.title,
+    author: pr.author?.display_name ?? 'unknown',
+    branch: pr.source?.branch?.name ?? '',
+    url: pr.links?.html?.href ?? '',
+    createdAt: pr.created_on?.slice(0, 10) ?? '',
+  }))
+}
+
+// ─── PR Merge ─────────────────────────────────────────────────────────────────
+
+export type MergeMethod = 'merge' | 'squash' | 'rebase'
+
+export async function mergeGitHubPR(
+  token: string, owner: string, repo: string, prNumber: number, method: MergeMethod
+): Promise<void> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ merge_method: method }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    throw new Error(err.message ?? `GitHub API error ${res.status}`)
+  }
+}
+
+export async function mergeGitLabMR(
+  token: string, namespace: string, repo: string, mrIid: number, method: MergeMethod
+): Promise<void> {
+  const projectPath = encodeURIComponent(`${namespace}/${repo}`)
+  const body: Record<string, any> = {}
+  if (method === 'squash') body.squash = true
+  const res = await fetch(`https://gitlab.com/api/v4/projects/${projectPath}/merge_requests/${mrIid}/merge`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message ?? `GitLab API error ${res.status}`)
+    throw new Error(msg)
+  }
+}
+
+export async function mergeBitbucketPR(
+  token: string, workspace: string, repo: string, prId: number
+): Promise<void> {
+  const authHeader = token.includes(':')
+    ? `Basic ${Buffer.from(token).toString('base64')}`
+    : `Bearer ${token}`
+  const res = await fetch(
+    `https://api.bitbucket.org/2.0/repositories/${workspace}/${repo}/pullrequests/${prId}/merge`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any
+    throw new Error(err.error?.message ?? `Bitbucket API error ${res.status}`)
+  }
+}
+
+// ─── PR Create ────────────────────────────────────────────────────────────────
+
 export type PRPayload = {
   title: string
   body: string
