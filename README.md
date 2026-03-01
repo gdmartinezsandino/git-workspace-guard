@@ -396,6 +396,70 @@ Scans a local directory for git repositories whose `origin` remote matches the a
 ```
 
 ---
+
+## 🩺 System Doctor
+
+```bash
+gw system doctor
+```
+
+Runs a full health check across two sections:
+
+**System Environment** — checks that the core infrastructure is functional:
+
+| Check | What it verifies |
+|-------|-----------------|
+| Version | Whether a newer release is available on GitHub |
+| Git Binary | `git` is in `PATH` |
+| SSH Agent | `SSH_AUTH_SOCK` is set in the current shell |
+| Git Hooks Path | `core.hooksPath` points to `~/.gw/hooks` |
+| Guard Engine | `~/.gw/guard.sh` exists |
+| Hook: pre-commit | File exists and is executable |
+| Hook: pre-push | File exists and is executable |
+
+**Workspace: \<active\>** — live checks against the active workspace:
+
+| Check | What it verifies |
+|-------|-----------------|
+| API Token | Calls the provider API (`/user`) to confirm the token is valid |
+| SSH Key File | The configured key file exists on disk |
+| SSH Key Perms | Key file permissions are `600` |
+| SSH Auth | Runs `ssh -T git@<alias>` to verify end-to-end connectivity |
+| GPG Signing | GPG key is saved in the workspace and applied in global git config |
+
+Any failed check includes a **Fix:** hint showing the exact command to resolve it.
+
+---
+
+## 🔐 GPG Commit Signing
+
+```bash
+gw commit sign
+```
+
+Sets up GPG-signed commits for the active workspace so your commits show a **"Verified"** badge on GitHub.
+
+**Steps:**
+1. Detects the available `gpg` / `gpg2` binary.
+2. Lists your secret GPG keys — select one or enter an ID manually.
+3. Choose scope:
+   - **Global + save to workspace** — applies to all future commits and persists the key in your workspace config so it's re-applied automatically every time you run `gw workspace use`.
+   - **Local only** — applies only to the current repo.
+4. Configures `user.signingkey`, `commit.gpgsign`, `tag.gpgSign`, and `gpg.program`.
+5. Prints the command to export your public key for uploading to GitHub.
+
+```bash
+# Verify a signed commit
+git log --show-signature -1
+
+# Export your public key
+gpg --armor --export YOUR_KEY_ID
+# then paste it at: github.com → Settings → SSH and GPG keys → New GPG key
+```
+
+> When a workspace has no GPG key configured, `gw workspace use` automatically clears `commit.gpgsign` so you don't accidentally sign commits with the wrong key.
+
+---
 ## Philosophy
 
 This tool follows the **Local Dev Platform** pattern. It wraps your existing Git workflow with a layer of identity awareness, ensuring that you remain compliant with security policies without sacrificing developer experience.
