@@ -245,7 +245,7 @@ Example template:
 | `{{repo}}` | Repository name |
 | `{{workspace}}` | Active workspace name |
 
-> The `.git-templates/` folder is designed to hold multiple template types in the future (e.g., commit messages, issue descriptions). Only `pr.md` is used today.
+> The `.git-templates/` folder holds template files for different commands. Currently `pr.md` (PR body) and `issue.md` (issue description) are supported.
 
 ---
 
@@ -256,6 +256,144 @@ gw pr create
 ```
 
 You'll be prompted for title, base branch, and whether to open as draft (GitHub/GitLab only). The PR URL is shown at the end and can be opened in your browser directly.
+
+---
+
+## 📋 Listing Pull Requests
+
+```bash
+gw pr list
+```
+
+Fetches all **open** pull requests for the current repo via the workspace API token and renders a compact table:
+
+```
+  #      Title                                          Branch                       Author             Date
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  #12    Add dark mode toggle                           feat/dark-mode               @alice             2026-02-28
+  #11    Fix login redirect loop                        fix/redirect-loop [draft]    @bob               2026-02-25
+```
+
+> Requires a token set on the active workspace. Run `gw workspace edit <name>` to add one.
+
+---
+
+## 🔀 Merging a Pull Request
+
+```bash
+gw pr merge          # interactive — select from a list of open PRs
+gw pr merge 42       # merge PR #42 directly
+```
+
+Steps:
+1. If no number is given, open PRs are fetched and displayed for selection.
+2. Choose a **merge method**: `merge` (merge commit), `squash`, or `rebase`. Bitbucket always uses a standard merge.
+3. Confirm before the merge request is sent to the API.
+
+---
+
+## 🐛 Creating Issues
+
+```bash
+gw issue create
+```
+
+Prompts for a **title** and **description**, then creates an issue on GitHub, GitLab, or Bitbucket using the active workspace's API token. Optionally opens the issue URL in the browser when done.
+
+### Issue templates
+
+| Location | Scope |
+|----------|-------|
+| `.git-templates/issue.md` in your project root | Per-project (takes priority) |
+| `~/.gw/issue-template.md` | Global fallback |
+
+**Available template variables:**
+
+| Variable | Value |
+|----------|-------|
+| `{{repo}}` | Repository name |
+| `{{workspace}}` | Active workspace name |
+
+Example template (`.git-templates/issue.md`):
+
+```markdown
+## Description
+
+
+## Steps to reproduce
+1.
+2.
+
+## Expected behaviour
+
+
+## Actual behaviour
+
+```
+
+---
+
+## 📦 Cloning All Repos from an Org
+
+```bash
+gw workspace clone-all
+```
+
+Fetches the full repository list for an organization from the provider API, lets you pick repos via a **multi-select menu**, then clones each one using the workspace SSH alias and sets the correct local `user.name` / `user.email`.
+
+**Flow:**
+1. Choose a workspace and enter the org/namespace to clone from.
+2. Set the target directory (defaults to the current directory).
+3. Select repos — space to toggle, enter to confirm.
+4. Each repo is cloned with the SSH alias rewritten for the workspace key.
+
+```bash
+# Example output
+  Fetching repo list from github...
+
+  Select repos to clone (12 available):
+  ❯ ◉ api-service
+    ◯ frontend-app
+    ◉ shared-libs
+    ...
+
+  Cloning api-service...
+  Cloning shared-libs...
+
+  ✅ Cloned 2 of 2 repos into /Users/you/work
+```
+
+---
+
+## 🔄 Syncing Workspace Repos
+
+```bash
+gw workspace sync
+```
+
+Scans a local directory for git repositories whose `origin` remote matches the active workspace's `orgs[]` keywords, then pulls `--ff-only` on the default branch for each.
+
+**Per-repo status:**
+
+| Icon | Meaning |
+|------|---------|
+| ✔ | Pull succeeded |
+| ⏭ | Repo is on a non-default branch — skipped to avoid surprises |
+| ✘ | Pull failed (conflict, diverged history, etc.) |
+
+```bash
+# Example output
+  Found 3 repos:
+    • api-service
+    • frontend-app
+    • shared-libs
+
+  ✔ api-service
+  ⏭ frontend-app   on "feat/dark-mode", skipped
+  ✔ shared-libs
+
+  ✔ Updated: 2   Skipped: 1   Errors: 0
+```
 
 ---
 ## Philosophy
