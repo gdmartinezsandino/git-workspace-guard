@@ -104,15 +104,28 @@ export default async function clone(url: string) {
     log.warn(`Could not update SSH symlink: ${err.message}`)
   }
 
-  // Output shell commands for the parent shell to eval (workspace switch)
-  const lines = [
-    `export GW_ACTIVE="${workspaceName}"`,
-    `git config --global user.name "${ws.userName}"`,
-    `git config --global user.email "${ws.userEmail}"`,
-    `ssh-add -D > /dev/null 2>&1`,
-    `ssh-add "${ws.sshKey.replace('~', '$HOME')}" > /dev/null 2>&1`,
-    `echo "✅ Cloned '${repo}' with workspace '${workspaceName}'"`,
-    `echo "👤 ${ws.userName} <${ws.userEmail}>"`,
-  ]
-  console.log(lines.join('\n'))
+  // Apply global git identity directly — works with or without shell integration
+  await execa('git', ['config', '--global', 'user.name', ws.userName]).catch(() => {})
+  await execa('git', ['config', '--global', 'user.email', ws.userEmail]).catch(() => {})
+
+  // Load SSH key into agent directly via SSH_AUTH_SOCK (inherited by child processes)
+  await execa('ssh-add', ['-D'], { reject: false, stdio: 'ignore' })
+  const realKeyPath = ws.sshKey.replace('~', os.homedir())
+  const sshResult = await execa('ssh-add', [realKeyPath], { reject: false, stdio: 'ignore' })
+  if (sshResult.exitCode !== 0) {
+    process.stderr.write(chalk.yellow(`⚠️  Could not load SSH key automatically. Run: ssh-add ${ws.sshKey}\n`))
+  }
+
+  // Print status to stderr — visible in both shell-integrated and direct-call modes
+  process.stderr.write(`✅ Cloned '${repo}' with workspace '${workspaceName}'\n`)
+  process.stderr.write(`👤 ${ws.userName} <${ws.userEmail}>\n`)
+
+  // Output export for shell integration to eval.
+  // TTY detection: if stdout is a terminal, no shell function is wrapping us — warn instead.
+  if (process.stdout.isTTY) {
+    process.stderr.write(chalk.yellow(`\n⚠️  Shell integration not active — GW_ACTIVE won't be set in this session.\n`))
+    process.stderr.write(chalk.dim(`   Run: gw system init && source ~/.zshrc\n`))
+  } else {
+    console.log(`export GW_ACTIVE="${workspaceName}"`)
+  }
 }

@@ -4,14 +4,11 @@ import path from 'path'
 import { execa } from 'execa'
 import chalk from 'chalk'
 
-import { 
-  GW_DIR, 
-  SSH_CONFIG_PATH, 
-  GW_SSH_CONFIG, 
-  ACTIVE_KEY_SYMLINK 
+import {
+  GW_DIR,
 } from '../../core/constants.js'
 import { ensureStorage } from '../../core/storage.js'
-import { config } from '../../core/config.js'
+import { setupSSHConfig } from '../../core/ssh.js'
 
 const MIN_NODE_MAJOR = 18
 
@@ -46,41 +43,6 @@ export default async function init() {
   console.log('Next steps:')
   console.log('  gw workspace add')
   console.log('  gw workspace use <name>\n')
-}
-
-async function setupSSHConfig() {
-  const workspaces = config.get('workspaces');
-  const names = Object.keys(workspaces);
-  
-  // 1. Collect every alias (gw-W_NAME_1, gw-W_NAME_2, etc.)
-  const aliases = names.map(n => `gw-${n}`).join(' ');
-  const domains = 'github.com bitbucket.org gitlab.com';
-
-  // 2. Map BOTH the real domains AND all aliases to the active symlink
-  // This is the key: now gw-W_NAME_1 is a valid "Host" for SSH even in personal mode
-  const dynamicConfig = `
-# Git Workspace Guard - Unified Hijack
-Host ${domains} ${aliases}
-    IdentityFile ${ACTIVE_KEY_SYMLINK}
-    IdentitiesOnly yes
-    User git
-`;
-
-  await fs.ensureDir(path.dirname(GW_SSH_CONFIG));
-  // Use writeFile to OVERWRITE the file, not append
-  await fs.writeFile(GW_SSH_CONFIG, dynamicConfig);
-
-  // 3. Ensure the Include is in the main ~/.ssh/config
-  let mainConfig = '';
-  if (await fs.pathExists(SSH_CONFIG_PATH)) {
-    mainConfig = await fs.readFile(SSH_CONFIG_PATH, 'utf8');
-  }
-
-  // 4. Add Include line if missing
-  const includeLine = `Include "${GW_SSH_CONFIG}"`;
-  if (!mainConfig.includes(GW_SSH_CONFIG)) {
-    await fs.writeFile(SSH_CONFIG_PATH, `${includeLine}\n\n${mainConfig}`, { mode: 0o600 });
-  }
 }
 
 async function setupGit() {

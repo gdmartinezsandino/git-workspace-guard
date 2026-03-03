@@ -1,6 +1,7 @@
 import prompts from 'prompts'
 
 import { config } from '../../core/config.js'
+import { setupSSHConfig } from '../../core/ssh.js'
 
 export default async function remove(name: string) {
   const workspaces = config.get('workspaces');
@@ -31,6 +32,7 @@ export default async function remove(name: string) {
   if (confirm) {
     delete workspaces[name];
     config.set('workspaces', workspaces);
+    await setupSSHConfig()
     console.log(`🗑️  Workspace "${name}" removed.`);
   }
 }

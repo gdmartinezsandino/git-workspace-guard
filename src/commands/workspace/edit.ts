@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { config } from '../../core/config.js'
 import { questions } from '../../core/constants.js'
 import { log } from '../../core/logger.js'
+import { setupSSHConfig } from '../../core/ssh.js'
 
 export default async function edit(name: string) {
   const workspaces = config.get('workspaces')
@@ -88,6 +89,7 @@ export default async function edit(name: string) {
   updatedWorkspaces[newName] = workspaceUpdated;
 
   config.set('workspaces', updatedWorkspaces);
+  await setupSSHConfig()
 
   log.title(`✅ Workspace "${name}" updated.`);
 }
