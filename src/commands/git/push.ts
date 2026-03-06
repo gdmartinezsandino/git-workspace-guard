@@ -4,7 +4,11 @@ import { execa } from 'execa'
 
 import { log } from '../../core/logger.js'
 
-export default async function push() {
+type PushOptions = {
+  pr?: boolean  // false when --no-pr is passed
+}
+
+export default async function push(options: PushOptions = {}) {
   // 1. Must be inside a git repo
   const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel']).catch(() => ({ stdout: '' }))
   if (!root) return log.error('Not inside a git repository.')
@@ -60,16 +64,18 @@ export default async function push() {
 
   console.log(chalk.green(`\n✔ ${chalk.bold(branch)} pushed successfully!\n`))
 
-  // 7. Offer to create a PR
-  const { openPR } = await prompts({
-    type: 'confirm',
-    name: 'openPR',
-    message: 'Create a pull request now?',
-    initial: false,
-  })
+  // 7. Offer to create a PR — skip prompt if --no-pr was passed
+  if (options.pr !== false) {
+    const { openPR } = await prompts({
+      type: 'confirm',
+      name: 'openPR',
+      message: 'Create a pull request now?',
+      initial: false,
+    })
 
-  if (openPR) {
-    const { default: create } = await import('../pr/create.js')
-    await create()
+    if (openPR) {
+      const { default: create } = await import('../pr/create.js')
+      await create()
+    }
   }
 }

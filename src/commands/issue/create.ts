@@ -85,7 +85,13 @@ async function createBitbucketIssue(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default async function issueCreate() {
+type IssueCreateOptions = {
+  title?: string
+  body?: string
+  open?: boolean  // false when --no-open is passed
+}
+
+export default async function issueCreate(options: IssueCreateOptions = {}) {
   const ctx = await loadContext()
   if (!ctx.isGitRepo) return log.error('Not inside a git repository.')
   if (!ctx.workspace) return log.error('No active workspace. Run: gw workspace use <name>')
@@ -122,44 +128,56 @@ export default async function issueCreate() {
     console.log(chalk.dim('  Using default issue template from ~/.gw/issue-template.md\n'))
   }
 
-  const response = await prompts([
-    {
-      type: 'text',
+  // Prompts — skip fields provided via flags
+  const promptFields: prompts.PromptObject[] = [
+    ...(!options.title ? [{
+      type: 'text' as const,
       name: 'title',
       message: 'Issue title:',
       validate: (v: string) => v.trim() ? true : 'Title is required',
-    },
-    {
-      type: 'text',
+    }] : []),
+    ...(!options.body ? [{
+      type: 'text' as const,
       name: 'body',
       message: 'Description (markdown):',
       initial: defaultBody,
-    },
-  ], { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+    }] : []),
+  ]
+
+  const response = promptFields.length > 0
+    ? await prompts(promptFields, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+    : {}
+
+  const title = options.title ?? (response as any).title
+  const body  = options.body  ?? (response as any).body ?? ''
+
+  if (!title) return log.error('Issue title is required.')
 
   try {
     let result: { url: string; number: number }
 
     if (provider === 'github') {
-      result = await createGitHubIssue(ws.token, owner, repo, response.title, response.body)
+      result = await createGitHubIssue(ws.token, owner, repo, title, body)
     } else if (provider === 'gitlab') {
-      result = await createGitLabIssue(ws.token, owner, repo, response.title, response.body)
+      result = await createGitLabIssue(ws.token, owner, repo, title, body)
     } else {
-      result = await createBitbucketIssue(ws.token, owner, repo, response.title, response.body)
+      result = await createBitbucketIssue(ws.token, owner, repo, title, body)
     }
 
     console.log(chalk.green(`\n✅ Issue #${result.number} created!`))
     console.log(chalk.dim(`   ${result.url}\n`))
 
-    const { openBrowser } = await prompts({
-      type: 'confirm',
-      name: 'openBrowser',
-      message: 'Open in browser?',
-      initial: true,
-    })
-
-    if (openBrowser) {
-      await execa('open', [result.url]).catch(() => execa('xdg-open', [result.url]))
+    // --no-open skips the prompt and doesn't open; otherwise ask
+    if (options.open !== false) {
+      const { openBrowser } = await prompts({
+        type: 'confirm',
+        name: 'openBrowser',
+        message: 'Open in browser?',
+        initial: true,
+      })
+      if (openBrowser) {
+        await execa('open', [result.url]).catch(() => execa('xdg-open', [result.url]))
+      }
     }
   } catch (err: any) {
     log.error(`Failed to create issue: ${err.message}`)

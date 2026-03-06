@@ -67,7 +67,7 @@ async function installHooks() {
 
   const hookScript = (hookName: string) => `#!/bin/bash
 # GW Guard: validate workspace identity
-"$HOME/.gw/guard.sh"
+"$HOME/.gw/guard.sh" || exit 1
 
 # Delegate to project-level hooks (husky, lefthook, etc.)
 GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"

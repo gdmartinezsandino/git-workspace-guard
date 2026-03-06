@@ -56,7 +56,14 @@ const TOKEN_HINTS: Record<string, string> = {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default async function create() {
+type CreateOptions = {
+  title?: string
+  target?: string
+  draft?: boolean
+  open?: boolean  // false when --no-open is passed (commander negation default is true)
+}
+
+export default async function create(options: CreateOptions = {}) {
   log.title(chalk.cyan('\n🚀 Create Pull Request\n'))
 
   // 1. Context
@@ -126,31 +133,42 @@ export default async function create() {
     console.log(chalk.dim('  Using default PR template from ~/.gw/pr-template.md\n'))
   }
 
-  // 5. Interactive prompts
+  // 5. Interactive prompts — skip fields that were provided via flags
   const isDraftSupported = provider !== 'bitbucket'
 
-  const prResponse = await prompts([
-    {
-      type: 'text',
+  const promptFields: prompts.PromptObject[] = [
+    ...(!options.title ? [{
+      type: 'text' as const,
       name: 'title',
       message: 'PR title:',
       initial: branchToTitle(currentBranch),
       validate: (v: string) => v ? true : 'Title is required',
-    },
-    {
-      type: 'text',
+    }] : []),
+    ...(!options.target ? [{
+      type: 'text' as const,
       name: 'base',
       message: 'Base branch (target):',
       initial: defaultBranch,
       validate: (v: string) => v ? true : 'Base branch is required',
-    },
-    ...(isDraftSupported ? [{
+    }] : []),
+    ...(isDraftSupported && options.draft === undefined ? [{
       type: 'confirm' as const,
       name: 'draft',
       message: 'Open as draft?',
       initial: false,
     }] : []),
-  ], { onCancel: () => { log.warn('PR creation cancelled.'); process.exit(0) } })
+  ]
+
+  const prResponse = promptFields.length > 0
+    ? await prompts(promptFields, { onCancel: () => { log.warn('PR creation cancelled.'); process.exit(0) } })
+    : {}
+
+  const title = options.title ?? (prResponse as any).title
+  const base  = options.target ?? (prResponse as any).base
+  const draft = options.draft  ?? (prResponse as any).draft ?? false
+
+  if (!title) return log.error('PR title is required.')
+  if (!base)  return log.error('Base branch is required.')
 
   // 6. Call provider API
   let result: { url: string; number: number }
@@ -158,26 +176,15 @@ export default async function create() {
   try {
     if (provider === 'github') {
       result = await createGitHubPR(ws.token!, owner, repo, {
-        title: prResponse.title,
-        body,
-        head: currentBranch,
-        base: prResponse.base,
-        draft: prResponse.draft ?? false,
+        title, body, head: currentBranch, base, draft,
       })
     } else if (provider === 'bitbucket') {
       result = await createBitbucketPR(ws.token!, owner, repo, {
-        title: prResponse.title,
-        body,
-        head: currentBranch,
-        base: prResponse.base,
+        title, body, head: currentBranch, base,
       })
     } else {
       result = await createGitLabMR(ws.token!, owner, repo, {
-        title: prResponse.title,
-        body,
-        head: currentBranch,
-        base: prResponse.base,
-        draft: prResponse.draft ?? false,
+        title, body, head: currentBranch, base, draft,
       })
     }
   } catch (err: any) {
@@ -188,14 +195,16 @@ export default async function create() {
   console.log(chalk.green(`\n✅ PR #${result!.number} created successfully!`))
   console.log(chalk.dim(`   ${result!.url}\n`))
 
-  const { openBrowser } = await prompts({
-    type: 'confirm',
-    name: 'openBrowser',
-    message: 'Open in browser?',
-    initial: true,
-  })
-
-  if (openBrowser) {
-    await execa('open', [result!.url]).catch(() => execa('xdg-open', [result!.url]))
+  // --no-open skips the prompt and doesn't open; otherwise ask
+  if (options.open !== false) {
+    const { openBrowser } = await prompts({
+      type: 'confirm',
+      name: 'openBrowser',
+      message: 'Open in browser?',
+      initial: true,
+    })
+    if (openBrowser) {
+      await execa('open', [result!.url]).catch(() => execa('xdg-open', [result!.url]))
+    }
   }
 }
