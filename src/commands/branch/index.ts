@@ -12,6 +12,10 @@ export function registerBranchCommands(program: Command) {
   branch
     .command('create')
     .description('Create a branch following the workspace naming convention (type/TICKET-description)')
+    .option('-t, --type <type>', 'Branch type: feat|fix|hotfix|chore|docs|test|refactor|release (skips prompt)')
+    .option('-k, --ticket <id>', 'Ticket / issue ID, e.g. PROJ-123 (skips prompt)')
+    .option('-d, --description <desc>', 'Branch description (skips prompt)')
+    .option('-y, --yes', 'Skip the confirmation prompt')
     .action(branchCreate)
 
   branch

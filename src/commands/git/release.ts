@@ -131,7 +131,16 @@ function buildChangelogSection(version: string, commits: ParsedCommit[]): string
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default async function release() {
+type ReleaseOptions = {
+  patch?: boolean
+  minor?: boolean
+  major?: boolean
+  version?: string
+  yes?: boolean
+  push?: boolean  // false when --no-push is passed
+}
+
+export default async function release(options: ReleaseOptions = {}) {
   const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel']).catch(() => ({ stdout: '' }))
   if (!root) return log.error('Not inside a git repository.')
 
@@ -145,34 +154,47 @@ export default async function release() {
 
   console.log(chalk.dim(`  Current version: ${chalk.white(currentVersion)}\n`))
 
-  // 2. Suggest semver bumps
+  // 2. Resolve version from flags or prompt
   const patch = bumpVersion(currentVersion, 'patch')
   const minor = bumpVersion(currentVersion, 'minor')
   const major = bumpVersion(currentVersion, 'major')
 
-  const { versionChoice } = await prompts({
-    type: 'select',
-    name: 'versionChoice',
-    message: 'Choose new version:',
-    choices: [
-      { title: `patch  →  ${patch}  (bug fixes)`,        value: patch },
-      { title: `minor  →  ${minor}  (new features)`,     value: minor },
-      { title: `major  →  ${major}  (breaking changes)`, value: major },
-      { title: 'custom  (enter manually)',                value: 'custom' },
-    ],
-    initial: 0,
-  }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+  let newVersion: string
 
-  let newVersion: string = versionChoice
-
-  if (versionChoice === 'custom') {
-    const { custom } = await prompts({
-      type: 'text',
-      name: 'custom',
-      message: 'Enter version (without v prefix):',
-      validate: (v: string) => /^\d+\.\d+\.\d+/.test(v) ? true : 'Must be valid semver (e.g. 2.1.0)',
+  if (options.version) {
+    if (!/^\d+\.\d+\.\d+/.test(options.version)) return log.error('--version must be valid semver (e.g. 2.1.0)')
+    newVersion = options.version
+  } else if (options.patch) {
+    newVersion = patch
+  } else if (options.minor) {
+    newVersion = minor
+  } else if (options.major) {
+    newVersion = major
+  } else {
+    const { versionChoice } = await prompts({
+      type: 'select',
+      name: 'versionChoice',
+      message: 'Choose new version:',
+      choices: [
+        { title: `patch  →  ${patch}  (bug fixes)`,        value: patch },
+        { title: `minor  →  ${minor}  (new features)`,     value: minor },
+        { title: `major  →  ${major}  (breaking changes)`, value: major },
+        { title: 'custom  (enter manually)',                value: 'custom' },
+      ],
+      initial: 0,
     }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
-    newVersion = custom
+
+    if (versionChoice === 'custom') {
+      const { custom } = await prompts({
+        type: 'text',
+        name: 'custom',
+        message: 'Enter version (without v prefix):',
+        validate: (v: string) => /^\d+\.\d+\.\d+/.test(v) ? true : 'Must be valid semver (e.g. 2.1.0)',
+      }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+      newVersion = custom
+    } else {
+      newVersion = versionChoice
+    }
   }
 
   const tag = `v${newVersion}`
@@ -196,14 +218,16 @@ export default async function release() {
   console.log(changelogSection.trimEnd())
   console.log(chalk.dim('─'.repeat(50)) + '\n')
 
-  const { confirmed } = await prompts({
-    type: 'confirm',
-    name: 'confirmed',
-    message: `Proceed with release ${chalk.bold(tag)}?`,
-    initial: true,
-  }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+  if (!options.yes) {
+    const { confirmed } = await prompts({
+      type: 'confirm',
+      name: 'confirmed',
+      message: `Proceed with release ${chalk.bold(tag)}?`,
+      initial: true,
+    }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
 
-  if (!confirmed) return log.warn('Release cancelled.')
+    if (!confirmed) return log.warn('Release cancelled.')
+  }
 
   // 4. Update package.json version
   if (hasPkg) {
@@ -242,12 +266,17 @@ export default async function release() {
   console.log(chalk.green(`  ✔ Annotated tag ${tag} created`))
 
   // 7. Push
-  const { doPush } = await prompts({
-    type: 'confirm',
-    name: 'doPush',
-    message: 'Push commits and tag to origin?',
-    initial: true,
-  }, { onCancel: () => { log.warn('Skipping push.'); process.exit(0) } })
+  let doPush = options.push !== false
+
+  if (options.push !== false) {
+    const { pushConfirmed } = await prompts({
+      type: 'confirm',
+      name: 'pushConfirmed',
+      message: 'Push commits and tag to origin?',
+      initial: true,
+    }, { onCancel: () => { log.warn('Skipping push.'); process.exit(0) } })
+    doPush = pushConfirmed
+  }
 
   if (doPush) {
     await execa('git', ['push'], { stdio: 'inherit' })

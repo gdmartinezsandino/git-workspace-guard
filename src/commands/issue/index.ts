@@ -7,5 +7,8 @@ export function registerIssueCommands(program: Command) {
   issue
     .command('create')
     .description('Create a new issue on GitHub, GitLab, or Bitbucket')
+    .option('-t, --title <title>', 'Issue title (skips prompt)')
+    .option('-b, --body <body>', 'Issue description / body (skips prompt)')
+    .option('--no-open', 'Do not open in browser after creation (skips prompt)')
     .action(issueCreate)
 }

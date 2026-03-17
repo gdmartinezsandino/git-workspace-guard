@@ -15,12 +15,27 @@ const COMMIT_TYPES = [
   { value: 'perf',     title: 'perf      — performance improvement' },
 ]
 
-export default async function commit() {
+type CommitOptions = {
+  type?: string
+  scope?: string
+  message?: string
+  body?: string
+  all?: boolean
+  yes?: boolean
+}
+
+export default async function commit(options: CommitOptions = {}) {
   // 1. Must be inside a git repo
   const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel']).catch(() => ({ stdout: '' }))
   if (!root) return log.error('Not inside a git repository.')
 
-  // 2. Check staged files
+  // 2. Stage all if -a / --all was passed
+  if (options.all) {
+    await execa('git', ['add', '-A'])
+    log.info('All changes staged.\n')
+  }
+
+  // 3. Check staged files
   const { stdout: stagedRaw } = await execa('git', ['diff', '--cached', '--name-status'])
 
   if (!stagedRaw.trim()) {
@@ -48,7 +63,7 @@ export default async function commit() {
     log.info('All changes staged.\n')
   }
 
-  // 3. Show staged summary
+  // 4. Show staged summary
   const { stdout: finalStaged } = await execa('git', ['diff', '--cached', '--name-status'])
   console.log(chalk.cyan('📦 Staged changes:\n'))
   finalStaged.trim().split('\n').forEach(line => {
@@ -59,56 +74,66 @@ export default async function commit() {
   })
   console.log()
 
-  // 4. Prompts
-  const response = await prompts(
-    [
-      {
-        type: 'select',
-        name: 'type',
-        message: 'Commit type:',
-        choices: COMMIT_TYPES.map(t => ({ title: t.title, value: t.value })),
-        initial: 0,
-      },
-      {
-        type: 'text',
-        name: 'scope',
-        message: 'Scope (optional, e.g. auth, api):',
-      },
-      {
-        type: 'text',
-        name: 'description',
-        message: 'Description:',
-        validate: (v: string) => v.trim() ? true : 'Description is required',
-      },
-      {
-        type: 'text',
-        name: 'body',
-        message: 'Body (optional, press Enter to skip):',
-      },
-    ],
-    { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } }
-  )
+  // 5. Prompts — skip fields provided via flags
+  const promptFields: prompts.PromptObject[] = [
+    ...(!options.type ? [{
+      type: 'select' as const,
+      name: 'type',
+      message: 'Commit type:',
+      choices: COMMIT_TYPES.map(t => ({ title: t.title, value: t.value })),
+      initial: 0,
+    }] : []),
+    ...(!options.scope ? [{
+      type: 'text' as const,
+      name: 'scope',
+      message: 'Scope (optional, e.g. auth, api):',
+    }] : []),
+    ...(!options.message ? [{
+      type: 'text' as const,
+      name: 'description',
+      message: 'Description:',
+      validate: (v: string) => v.trim() ? true : 'Description is required',
+    }] : []),
+    ...(!options.body ? [{
+      type: 'text' as const,
+      name: 'body',
+      message: 'Body (optional, press Enter to skip):',
+    }] : []),
+  ]
 
-  // 5. Build conventional commit message
-  const scope = response.scope?.trim()
-  const prefix = scope ? `${response.type}(${scope})` : response.type
-  const subject = `${prefix}: ${response.description.trim()}`
-  const message = response.body?.trim()
-    ? `${subject}\n\n${response.body.trim()}`
-    : subject
+  const response = promptFields.length > 0
+    ? await prompts(promptFields, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+    : {}
+
+  const type        = options.type    ?? (response as any).type
+  const scope       = options.scope   ?? (response as any).scope
+  const description = options.message ?? (response as any).description
+  const body        = options.body    ?? (response as any).body
+
+  if (!type)        return log.error('Commit type is required.')
+  if (!description) return log.error('Commit description is required.')
+
+  // 6. Build conventional commit message
+  const scopeTrimmed = scope?.trim()
+  const prefix  = scopeTrimmed ? `${type}(${scopeTrimmed})` : type
+  const subject = `${prefix}: ${description.trim()}`
+  const message = body?.trim() ? `${subject}\n\n${body.trim()}` : subject
 
   console.log(chalk.dim(`\n  → ${chalk.white(subject)}\n`))
 
-  const { confirmed } = await prompts({
-    type: 'confirm',
-    name: 'confirmed',
-    message: 'Commit?',
-    initial: true,
-  }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+  // 7. Confirm (skip if --yes)
+  if (!options.yes) {
+    const { confirmed } = await prompts({
+      type: 'confirm',
+      name: 'confirmed',
+      message: 'Commit?',
+      initial: true,
+    }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
 
-  if (!confirmed) return log.warn('Commit cancelled.')
+    if (!confirmed) return log.warn('Commit cancelled.')
+  }
 
-  // 6. Commit
+  // 8. Commit
   await execa('git', ['commit', '-m', message])
   const { stdout: hash } = await execa('git', ['rev-parse', '--short', 'HEAD'])
   console.log(chalk.green(`\n✔ Committed ${chalk.bold(hash.trim())}: ${subject}\n`))

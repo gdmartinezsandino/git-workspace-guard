@@ -25,51 +25,68 @@ function toKebab(s: string): string {
     .replace(/^-|-$/g, '')
 }
 
-export default async function branchCreate() {
+type BranchCreateOptions = {
+  type?: string
+  ticket?: string
+  description?: string
+  yes?: boolean
+}
+
+export default async function branchCreate(options: BranchCreateOptions = {}) {
   const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel']).catch(() => ({ stdout: '' }))
   if (!root) return log.error('Not inside a git repository.')
 
   log.title('🌿 Create Branch')
 
-  const response = await prompts(
-    [
-      {
-        type: 'select',
-        name: 'type',
-        message: 'Branch type:',
-        choices: BRANCH_TYPES.map(t => ({ title: t.title, value: t.value })),
-        initial: 0,
-      },
-      {
-        type: 'text',
-        name: 'ticket',
-        message: 'Ticket / issue ID (optional, e.g. PROJ-123):',
-      },
-      {
-        type: 'text',
-        name: 'description',
-        message: 'Short description:',
-        validate: (v: string) => v.trim() ? true : 'Description is required',
-      },
-    ],
-    { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } }
-  )
+  const promptFields: prompts.PromptObject[] = [
+    ...(!options.type ? [{
+      type: 'select' as const,
+      name: 'type',
+      message: 'Branch type:',
+      choices: BRANCH_TYPES.map(t => ({ title: t.title, value: t.value })),
+      initial: 0,
+    }] : []),
+    ...(options.ticket === undefined ? [{
+      type: 'text' as const,
+      name: 'ticket',
+      message: 'Ticket / issue ID (optional, e.g. PROJ-123):',
+    }] : []),
+    ...(!options.description ? [{
+      type: 'text' as const,
+      name: 'description',
+      message: 'Short description:',
+      validate: (v: string) => v.trim() ? true : 'Description is required',
+    }] : []),
+  ]
 
-  const ticket = response.ticket?.trim().toUpperCase() || ''
-  const slug = toKebab(response.description)
-  const suffix = [ticket, slug].filter(Boolean).join('-')
-  const branchName = `${response.type}/${suffix}`
+  const response = promptFields.length > 0
+    ? await prompts(promptFields, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+    : {}
+
+  const type        = options.type        ?? (response as any).type
+  const ticket      = options.ticket      ?? (response as any).ticket ?? ''
+  const description = options.description ?? (response as any).description
+
+  if (!type)        return log.error('Branch type is required.')
+  if (!description) return log.error('Branch description is required.')
+
+  const ticketUpper = ticket.trim().toUpperCase()
+  const slug        = toKebab(description)
+  const suffix      = [ticketUpper, slug].filter(Boolean).join('-')
+  const branchName  = `${type}/${suffix}`
 
   console.log(chalk.dim(`\n  → ${chalk.white(branchName)}\n`))
 
-  const { confirmed } = await prompts({
-    type: 'confirm',
-    name: 'confirmed',
-    message: `Create and checkout "${branchName}"?`,
-    initial: true,
-  }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
+  if (!options.yes) {
+    const { confirmed } = await prompts({
+      type: 'confirm',
+      name: 'confirmed',
+      message: `Create and checkout "${branchName}"?`,
+      initial: true,
+    }, { onCancel: () => { log.warn('Cancelled.'); process.exit(0) } })
 
-  if (!confirmed) return log.warn('Cancelled.')
+    if (!confirmed) return log.warn('Cancelled.')
+  }
 
   try {
     await execa('git', ['checkout', '-b', branchName])

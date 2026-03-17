@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { config } from '../../core/config.js'
 import { questions } from '../../core/constants.js'
 import { log } from '../../core/logger.js'
+import { setupSSHConfig } from '../../core/ssh.js'
 
 // Map providers to their actual domain names
 const PROVIDER_DOMAINS = {
@@ -46,6 +47,7 @@ export default async function add() {
 
   workspaces[response.name] = workspace
   config.set('workspaces', workspaces)
+  await setupSSHConfig()
 
   log.title(chalk.green('\n✅ Workspace saved and SSH alias created\n'))
   log.title(chalk.dim(`Alias: ${workspace.sshAlias} -> ${domain}\n`))
