@@ -56,7 +56,11 @@ const TOKEN_HINTS: Record<string, string> = {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default async function create() {
+interface CreateOptions {
+  description?: string
+}
+
+export default async function create(opts: CreateOptions = {}) {
   log.title(chalk.cyan('\n🚀 Create Pull Request\n'))
 
   // 1. Context
@@ -109,21 +113,28 @@ export default async function create() {
     ws = { ...ws, token: tokenResponse.token }
   }
 
-  // 4. Read template — project-level first, then ~/.gw fallback
-  const projectTemplate = path.join(process.cwd(), '.git-templates', 'pr.md')
-  const globalTemplate  = path.join(GW_DIR, 'pr-template.md')
+  // 4. PR body — use --description flag if provided, otherwise read template
+  let body: string
 
-  const templatePath = (await fs.pathExists(projectTemplate))
-    ? projectTemplate
-    : (await fs.pathExists(globalTemplate)) ? globalTemplate : null
+  if (opts.description) {
+    body = opts.description
+    console.log(chalk.dim('  Using description from --description flag\n'))
+  } else {
+    const projectTemplate = path.join(process.cwd(), '.git-templates', 'pr.md')
+    const globalTemplate  = path.join(GW_DIR, 'pr-template.md')
 
-  const templateVars = { branch: currentBranch, base: defaultBranch, repo, workspace: activeName }
-  const body = templatePath
-    ? substituteTemplate(await fs.readFile(templatePath, 'utf8'), templateVars)
-    : ''
+    const templatePath = (await fs.pathExists(projectTemplate))
+      ? projectTemplate
+      : (await fs.pathExists(globalTemplate)) ? globalTemplate : null
 
-  if (templatePath === globalTemplate) {
-    console.log(chalk.dim('  Using default PR template from ~/.gw/pr-template.md\n'))
+    const templateVars = { branch: currentBranch, base: defaultBranch, repo, workspace: activeName }
+    body = templatePath
+      ? substituteTemplate(await fs.readFile(templatePath, 'utf8'), templateVars)
+      : ''
+
+    if (templatePath === globalTemplate) {
+      console.log(chalk.dim('  Using default PR template from ~/.gw/pr-template.md\n'))
+    }
   }
 
   // 5. Interactive prompts

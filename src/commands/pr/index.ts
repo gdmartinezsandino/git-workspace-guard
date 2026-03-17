@@ -8,7 +8,8 @@ export function registerPrCommands(program: Command) {
 
   pr.command('create')
     .description('Create a pull request for the current branch')
-    .action(create)
+    .option('-d, --description <text>', 'PR description/body (skips template)')
+    .action((opts) => create(opts))
 
   pr.command('list')
     .description('List open pull requests for the current repo')
