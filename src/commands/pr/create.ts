@@ -57,7 +57,7 @@ const TOKEN_HINTS: Record<string, string> = {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 type CreateOptions = {
-  description?: string
+  body?: string
   title?: string
   target?: string
   draft?: boolean
@@ -117,12 +117,12 @@ export default async function create(options: CreateOptions = {}) {
     ws = { ...ws, token: tokenResponse.token }
   }
 
-  // 4. PR body — use --description flag if provided, otherwise read template
+  // 4. PR body — use --body flag if provided, otherwise read template
   let body: string
 
-  if (options.description) {
-    body = options.description
-    console.log(chalk.dim('  Using description from --description flag\n'))
+  if (options.body) {
+    body = options.body
+    console.log(chalk.dim('  Using description from --body flag\n'))
   } else {
     const projectTemplate = path.join(process.cwd(), '.git-templates', 'pr.md')
     const globalTemplate  = path.join(GW_DIR, 'pr-template.md')

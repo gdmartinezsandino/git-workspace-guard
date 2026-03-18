@@ -8,7 +8,7 @@ export function registerPrCommands(program: Command) {
 
   pr.command('create')
     .description('Create a pull request for the current branch')
-    .option('--description <text>', 'PR description/body (skips template)')
+    .option('--body <text>', 'PR description/body (skips template)')
     .option('-t, --title <title>', 'PR title (skips prompt)')
     .option('-b, --target <branch>', 'Target/base branch (skips prompt)')
     .option('-d, --draft', 'Create as draft PR (skips prompt)')
